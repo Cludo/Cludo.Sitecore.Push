@@ -21,12 +21,12 @@ namespace Cludo.Sitecore.Push
     public class ItemEventHandler
     {
         private readonly bool _isConfigurationValid;
+        private readonly List<KeyValuePair<string, SiteContext>> _sites;
 
         public int ContentSourceId;
 
         public int CustomerId;
         protected string CustomerKey;
-        private SiteCollection _sites;
 
         public ItemEventHandler()
         {
@@ -52,7 +52,7 @@ namespace Cludo.Sitecore.Push
                 Log.Error($"ContentSourceId is not specified in appSettings or is invalid", this);
                 _isConfigurationValid = false;
             }
-            _sites = SiteManager.GetSites();
+            _sites = GetSites();
         }
 
         protected virtual Database Database => Factory.GetDatabase("web");
@@ -88,7 +88,7 @@ namespace Cludo.Sitecore.Push
             if (!context.Action.Equals(PublishAction.DeleteTargetItem)) return;
 
             var item = Database.GetItem(context.ItemId);
-            var items = new List<Item> { item };
+            var items = new List<Item> {item};
             items.AddRange(item.Axes.GetDescendants());
             AddItemToQueue(items.ToArray());
         }
@@ -113,19 +113,33 @@ namespace Cludo.Sitecore.Push
             AddItemToQueue(Database.GetItem(context.ItemId));
         }
 
+        private List<KeyValuePair<string, SiteContext>> GetSites()
+        {
+            return SiteManager.GetSites()
+                .Where(
+                    s =>
+                        !string.IsNullOrEmpty(s.Properties["rootPath"]) &&
+                        !string.IsNullOrEmpty(s.Properties["startItem"]))
+                .Select(
+                    d => new KeyValuePair<string, SiteContext>($"{d.Properties["rootPath"]}{d.Properties["startItem"]}",
+                        new SiteContext(new SiteInfo(d.Properties))))
+                .ToList();
+        }
+
+        public virtual SiteContext GetSiteContext(Item item)
+        {
+            var site = _sites.LastOrDefault(s => item.Paths.FullPath.StartsWith(s.Key));
+            return site.Value;
+        }
+
         private void AddItemToQueue(params Item[] items)
         {
-            
-            var test = SiteContext.Current;
             var options = LinkManager.GetDefaultUrlOptions();
-            
             options.AlwaysIncludeServerUrl = true;
-                //AddAspxExtension = true,
-                //EncodeNames = true,
-                //SiteResolving = true,
-            options.SiteResolving = true;
-            //options.Site = new SiteContext(new SiteInfo(sites[9].Properties));
-            //(items[0].Paths).FullPath
+            //For now links are always added from one site as an array
+            options.Site = GetSiteContext(items.First());
+            //If there is no match for site ignore links
+            if (options.Site == null) return;
             var urls = items.Select(item => LinkManager.GetItemUrl(item, options)).ToList();
 
             using (var client = GetClient())
@@ -135,7 +149,7 @@ namespace Cludo.Sitecore.Push
 
                 if (result.IsSuccessStatusCode) return;
                 var message = result.Content.ReadAsStringAsync().Result;
-                Log.Error(message, this);
+                Log.Error($"Invalid request to Cludo {result.RequestMessage.RequestUri}: Status: {result.StatusCode}, Message: {message}", this);
             }
         }
 
