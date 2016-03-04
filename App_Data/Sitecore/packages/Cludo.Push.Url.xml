@@ -1,0 +1,78 @@
+<project>
+  <Metadata>
+    <metadata>
+      <PackageName>Cludo Push Plugin</PackageName>
+      <Author>Cludo ApS</Author>
+      <Version>1.2</Version>
+      <Revision />
+      <License />
+      <Comment />
+      <Attributes />
+      <Readme>After you installed the push plugin you need to add the following lines to the web.config underneath appSettings:
+
+&lt;add key="Cludo.CustomerKey" value="YOUR CUSTOMER KEY"/&gt;
+&lt;add key="Cludo.CustomerId" value="YOUR CUSTOMER ID"/&gt;
+&lt;add key="Cludo.ContentId" value="YOUR CONTENT ID"/&gt;</Readme>
+      <Publisher>Cludo ApS</Publisher>
+      <PostStep />
+      <PackageID />
+    </metadata>
+  </Metadata>
+  <SaveProject>True</SaveProject>
+  <Sources>
+    <xfiles>
+      <Entries>
+        <x-item>/bin/Cludo.Sitecore.Push.dll</x-item>
+      </Entries>
+      <Converter>
+        <FileToEntryConverter>
+          <Root>/</Root>
+          <Transforms>
+            <InstallerConfigurationTransform>
+              <Options>
+                <BehaviourOptions>
+                  <ItemMode>Overwrite</ItemMode>
+                  <ItemMergeMode>Undefined</ItemMergeMode>
+                </BehaviourOptions>
+              </Options>
+            </InstallerConfigurationTransform>
+          </Transforms>
+        </FileToEntryConverter>
+      </Converter>
+      <Include />
+      <Exclude />
+      <Name>bin</Name>
+    </xfiles>
+    <xfiles>
+      <Entries>
+        <x-item>/App_Config/Include/Cludo.Push.Url.config</x-item>
+      </Entries>
+      <Converter>
+        <FileToEntryConverter>
+          <Root>/</Root>
+          <Transforms>
+            <InstallerConfigurationTransform>
+              <Options>
+                <BehaviourOptions>
+                  <ItemMode>Overwrite</ItemMode>
+                  <ItemMergeMode>Undefined</ItemMergeMode>
+                </BehaviourOptions>
+              </Options>
+            </InstallerConfigurationTransform>
+          </Transforms>
+        </FileToEntryConverter>
+      </Converter>
+      <Include />
+      <Exclude />
+      <Name>App_Config</Name>
+    </xfiles>
+  </Sources>
+  <Converter>
+    <TrivialConverter>
+      <Transforms />
+    </TrivialConverter>
+  </Converter>
+  <Include />
+  <Exclude />
+  <Name />
+</project>
