@@ -31,7 +31,7 @@ namespace Cludo.Sitecore.Push
         public ItemEventHandler()
         {
             _isConfigurationValid = true;
-            CustomerKey = ConfigurationManager.AppSettings.Get("CludoCustomerKey");
+            CustomerKey = ConfigurationManager.AppSettings.Get("Cludo.CustomerKey");
             if (string.IsNullOrEmpty(CustomerKey))
             {
                 Log.Error($"CludoCustomerKey is not specified in appSettings", this);
@@ -39,14 +39,14 @@ namespace Cludo.Sitecore.Push
             }
 
 
-            var key = ConfigurationManager.AppSettings.Get("CludoCustomerId");
+            var key = ConfigurationManager.AppSettings.Get("Cludo.CustomerId");
             if (string.IsNullOrEmpty(key) || !int.TryParse(key, out CustomerId))
             {
                 Log.Error($"CludoCustomerId is not specified in appSettings or is invalid", this);
                 _isConfigurationValid = false;
             }
 
-            key = ConfigurationManager.AppSettings.Get("ContentSourceId");
+            key = ConfigurationManager.AppSettings.Get("Cludo.ContentId");
             if (string.IsNullOrEmpty(key) || !int.TryParse(key, out ContentSourceId))
             {
                 Log.Error($"ContentSourceId is not specified in appSettings or is invalid", this);
@@ -61,8 +61,8 @@ namespace Cludo.Sitecore.Push
         {
             get
             {
-                var url = ConfigurationManager.AppSettings.Get("CludoIndexingUrl");
-                return !string.IsNullOrEmpty(url) ? url : "https://indexing.cludo.com/";
+                var url = ConfigurationManager.AppSettings.Get("Cludo.ServerUrl");
+                return !string.IsNullOrEmpty(url) ? url : "https://api.cludo.com/";
             }
         }
 
@@ -137,14 +137,16 @@ namespace Cludo.Sitecore.Push
             var options = LinkManager.GetDefaultUrlOptions();
             options.AlwaysIncludeServerUrl = true;
             //For now links are always added from one site as an array
-            options.Site = GetSiteContext(items.First());
+            var site = GetSiteContext(items.First());
+            if (site == null) return;
+            options.Site = site;
             //If there is no match for site ignore links
-            if (options.Site == null) return;
+            
             var urls = items.Select(item => LinkManager.GetItemUrl(item, options)).ToList();
 
             using (var client = GetClient())
             {
-                var result = client.PostAsync($"/api/{CustomerId}/content/{ContentSourceId}/urlstoupdate",
+                var result = client.PostAsync($"/api/v3/{CustomerId}/content/{ContentSourceId}/pushurls",
                     new StringContent(JsonConvert.SerializeObject(urls), Encoding.UTF8, "application/json")).Result;
 
                 if (result.IsSuccessStatusCode) return;
