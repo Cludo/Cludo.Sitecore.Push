@@ -8,12 +8,16 @@
       <License />
       <Comment />
       <Attributes />
-      <Readme>After you installed the push plugin you need to add the following lines to the web.config underneath appSettings:
+      <Readme>After you installed the push plugin add the following lines to the web.config to the appSettings section:
 
 &lt;add key="Cludo.CustomerKey" value="YOUR CUSTOMER KEY"/&gt;
 &lt;add key="Cludo.CustomerId" value="YOUR CUSTOMER ID"/&gt;
-&lt;add key="Cludo.ContentId" value="YOUR CONTENT ID"/&gt;</Readme>
-      <Publisher>Cludo ApS</Publisher>
+&lt;add key="Cludo.ContentId" value="YOUR CONTENT ID"/&gt;
+
+IMPORTANT!
+1. LinkManager property languageEmbedding must be set to "never" or "always". If its set to "asNeeded" you wont be able to push to Cludo, and you will see an alert in your logs.
+2. If you are using multiple host configurations, or you are publishing from different host name, then you must set targetHostName and scheme properties on site definition. Otherwise Sitecore will generate a wrong url and Cludo will not be able to crawl your website properly.</Readme>
+      <Publisher />
       <PostStep />
       <PackageID />
     </metadata>
@@ -22,30 +26,9 @@
   <Sources>
     <xfiles>
       <Entries>
-        <x-item>/bin/Cludo.Sitecore.Push.dll</x-item>
-      </Entries>
-      <Converter>
-        <FileToEntryConverter>
-          <Root>/</Root>
-          <Transforms>
-            <InstallerConfigurationTransform>
-              <Options>
-                <BehaviourOptions>
-                  <ItemMode>Overwrite</ItemMode>
-                  <ItemMergeMode>Undefined</ItemMergeMode>
-                </BehaviourOptions>
-              </Options>
-            </InstallerConfigurationTransform>
-          </Transforms>
-        </FileToEntryConverter>
-      </Converter>
-      <Include />
-      <Exclude />
-      <Name>bin</Name>
-    </xfiles>
-    <xfiles>
-      <Entries>
         <x-item>/App_Config/Include/Cludo.Push.Url.config</x-item>
+        <x-item>/bin/Cludo.Sitecore.Push.dll</x-item>
+        <x-item>/bin/Cludo.Sitecore.Push.pdb</x-item>
       </Entries>
       <Converter>
         <FileToEntryConverter>
@@ -64,7 +47,7 @@
       </Converter>
       <Include />
       <Exclude />
-      <Name>App_Config</Name>
+      <Name>Config and Binaries</Name>
     </xfiles>
   </Sources>
   <Converter>

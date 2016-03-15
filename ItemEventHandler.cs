@@ -5,7 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
-using Newtonsoft.Json;
+using System.Web.Script.Serialization;
 using Sitecore.Configuration;
 using Sitecore.Data;
 using Sitecore.Data.Items;
@@ -126,32 +126,51 @@ namespace Cludo.Sitecore.Push
                 .ToList();
         }
 
-        public virtual SiteContext GetSiteContext(Item item)
+        public virtual SiteContext GetSiteContext(string fullPath)
         {
-            var site = _sites.LastOrDefault(s => item.Paths.FullPath.StartsWith(s.Key));
+            
+            var site = _sites.LastOrDefault(s => fullPath.StartsWith(s.Key.ToLower()));
             return site.Value;
         }
 
         private void AddItemToQueue(params Item[] items)
         {
-            var options = LinkManager.GetDefaultUrlOptions();
-            options.AlwaysIncludeServerUrl = true;
             //For now links are always added from one site as an array
-            var site = GetSiteContext(items.First());
-            if (site == null) return;
-            options.Site = site;
-            //If there is no match for site ignore links
+            if (!items.Any()) return;
             
-            var urls = items.Select(item => LinkManager.GetItemUrl(item, options)).ToList();
-
-            using (var client = GetClient())
+            var websiteItem = items.First();
+            var fullItemPath = websiteItem.Paths.FullPath.ToLower();
+            var site = GetSiteContext(fullItemPath);
+            if (site == null)
             {
-                var result = client.PostAsync($"/api/v3/{CustomerId}/content/{ContentSourceId}/pushurls",
-                    new StringContent(JsonConvert.SerializeObject(urls), Encoding.UTF8, "application/json")).Result;
+                Log.Debug($"Cludo.Push.Url can't find website for item {fullItemPath}", this);
+                return;
+            }
 
-                if (result.IsSuccessStatusCode) return;
-                var message = result.Content.ReadAsStringAsync().Result;
-                Log.Error($"Invalid request to Cludo {result.RequestMessage.RequestUri}: Status: {result.StatusCode}, Message: {message}", this);
+            //If there is no match for site ignore links
+            using (new SiteContextSwitcher(site))
+            {
+                var options = LinkManager.GetDefaultUrlOptions();
+                options.AlwaysIncludeServerUrl = true;
+                options.ShortenUrls = true;
+                options.SiteResolving = true;
+                if (options.LanguageEmbedding != LanguageEmbedding.Always &&
+                    options.LanguageEmbedding != LanguageEmbedding.Never)
+                {
+                    Log.Warn($"Cludo.Push.Url supports only linkManager with languageEmbedding as always or never https://sdn.sitecore.net/upload/sitecore6/sc62keywords/dynamic_links_sc62_a4.pdf", this);
+                    return;
+                }
+                var urls = items.Select(item => LinkManager.GetItemUrl(item, options)).ToList();
+                using (var client = GetClient())
+                {
+                    var serilizer = new JavaScriptSerializer();
+                    var result = client.PostAsync($"/api/v3/{CustomerId}/content/{ContentSourceId}/pushurls",
+                        new StringContent(serilizer.Serialize(urls), Encoding.UTF8, "application/json")).Result;
+
+                    if (result.IsSuccessStatusCode) return;
+                    var message = result.Content.ReadAsStringAsync().Result;
+                    Log.Error($"Invalid request to Cludo {result.RequestMessage.RequestUri}: Status: {result.StatusCode}, Message: {message}", this);
+                }
             }
         }
 
