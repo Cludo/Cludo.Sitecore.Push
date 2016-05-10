@@ -23,7 +23,21 @@ namespace Cludo.Sitecore.Push
         private readonly bool _isConfigurationValid;
         private readonly List<KeyValuePair<string, SiteContext>> _sites;
 
-        public int ContentSourceId;
+        public int ContentSourceId(string language)
+        {
+            var key = ConfigurationManager.AppSettings.Get($"Cludo.{language.ToLower()}.ContentId");
+            var sourceId = 0;
+            if (string.IsNullOrEmpty(key) || !int.TryParse(key, out sourceId))
+            {
+                key= ConfigurationManager.AppSettings.Get($"Cludo.ContentId");
+                if (string.IsNullOrEmpty(key) || !int.TryParse(key, out sourceId))
+                {
+                    Log.Error($"ContentSourceId is not specified in appSettings or is invalid for language {language}. Please add to appSettings key Cludo.{language.ToLower()}.ContentId or default Cludo.ContentId", this);
+                }
+            }
+            //
+            return sourceId;
+        }
 
         public int CustomerId;
         protected string CustomerKey;
@@ -46,13 +60,7 @@ namespace Cludo.Sitecore.Push
                 _isConfigurationValid = false;
             }
 
-            key = ConfigurationManager.AppSettings.Get("Cludo.ContentId");
-            if (string.IsNullOrEmpty(key) || !int.TryParse(key, out ContentSourceId))
-            {
-                Log.Error($"ContentSourceId is not specified in appSettings or is invalid", this);
-                _isConfigurationValid = false;
-            }
-            _sites = GetSites();
+                        _sites = GetSites();
         }
 
         protected virtual Database Database => Factory.GetDatabase("web");
@@ -160,16 +168,27 @@ namespace Cludo.Sitecore.Push
                     Log.Warn($"Cludo.Push.Url supports only linkManager with languageEmbedding as always or never https://sdn.sitecore.net/upload/sitecore6/sc62keywords/dynamic_links_sc62_a4.pdf", this);
                     return;
                 }
-                var urls = items.Select(item => LinkManager.GetItemUrl(item, options)).ToList();
-                using (var client = GetClient())
+                
+                    
+                foreach (var urlGroup in items.GroupBy(i => i.Language.Name))
                 {
-                    var serilizer = new JavaScriptSerializer();
-                    var result = client.PostAsync($"/api/v3/{CustomerId}/content/{ContentSourceId}/pushurls",
-                        new StringContent(serilizer.Serialize(urls), Encoding.UTF8, "application/json")).Result;
+                    var contentId = ContentSourceId(urlGroup.Key);
+                    if (contentId <= 0) continue;
+                    using (var client = GetClient())
+                    {
+                        var serilizer = new JavaScriptSerializer();
+                        var result = client.PostAsync($"/api/v3/{CustomerId}/content/{contentId}/pushurls",
+                            new StringContent(
+                                serilizer.Serialize(
+                                    urlGroup.Select(item => LinkManager.GetItemUrl(item, options)).ToList()),
+                                Encoding.UTF8, "application/json")).Result;
 
-                    if (result.IsSuccessStatusCode) return;
-                    var message = result.Content.ReadAsStringAsync().Result;
-                    Log.Error($"Invalid request to Cludo {result.RequestMessage.RequestUri}: Status: {result.StatusCode}, Message: {message}", this);
+                        if (result.IsSuccessStatusCode) return;
+                        var message = result.Content.ReadAsStringAsync().Result;
+                        Log.Error(
+                            $"Invalid request to Cludo {result.RequestMessage.RequestUri}: Status: {result.StatusCode}, Message: {message}",
+                            this);
+                    }
                 }
             }
         }
